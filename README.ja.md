@@ -4,6 +4,7 @@
 
 ![Version](https://img.shields.io/badge/version-1.0.0-78a985)
 ![Author](https://img.shields.io/badge/author-yee58767-e58fa7)
+![License](https://img.shields.io/badge/license-GPL--3.0-8fb3c9)
 ![Rust](https://img.shields.io/badge/Rust-1.94-b7410e?logo=rust&logoColor=white)
 ![egui](https://img.shields.io/badge/egui-0.29.1-4b8bbe)
 ![winit](https://img.shields.io/badge/winit-0.30-555555)
@@ -66,6 +67,10 @@ cargo build --release
 ```
 
 実行ファイルは `target\release\mem_guard.exe`。設定ファイルとログはその隣に置かれます。
+
+## ライセンス
+
+GNU GPL 3.0 で公開しています。全文は [LICENSE](LICENSE) を参照してください。自由に使用・改変・再配布できますが、改変版を配布する場合はソースコードを同じく GPL 3.0 で公開する必要があります。
 
 ## 免責事項
 

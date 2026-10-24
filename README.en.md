@@ -4,6 +4,7 @@
 
 ![Version](https://img.shields.io/badge/version-1.0.0-78a985)
 ![Author](https://img.shields.io/badge/author-yee58767-e58fa7)
+![License](https://img.shields.io/badge/license-GPL--3.0-8fb3c9)
 ![Rust](https://img.shields.io/badge/Rust-1.94-b7410e?logo=rust&logoColor=white)
 ![egui](https://img.shields.io/badge/egui-0.29.1-4b8bbe)
 ![winit](https://img.shields.io/badge/winit-0.30-555555)
@@ -66,6 +67,10 @@ cargo build --release
 ```
 
 The executable is at `target\release\mem_guard.exe`; settings and logs sit next to it.
+
+## License
+
+Released under the GNU GPL 3.0; see [LICENSE](LICENSE) for the full text. You may use, modify and share it freely; if you share a modified version, you must publish its source under GPL 3.0 as well.
 
 ## Disclaimer
 

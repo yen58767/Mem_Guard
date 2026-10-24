@@ -4,6 +4,7 @@ version = "1.0.0"
 edition = "2021"
 authors = ["yee58767"]
 description = "Memory Guard"
+license = "GPL-3.0-only"
 
 [dependencies]
 egui = "=0.29.1"

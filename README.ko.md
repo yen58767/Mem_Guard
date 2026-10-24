@@ -4,6 +4,7 @@
 
 ![Version](https://img.shields.io/badge/version-1.0.0-78a985)
 ![Author](https://img.shields.io/badge/author-yee58767-e58fa7)
+![License](https://img.shields.io/badge/license-GPL--3.0-8fb3c9)
 ![Rust](https://img.shields.io/badge/Rust-1.94-b7410e?logo=rust&logoColor=white)
 ![egui](https://img.shields.io/badge/egui-0.29.1-4b8bbe)
 ![winit](https://img.shields.io/badge/winit-0.30-555555)
@@ -66,6 +67,10 @@ cargo build --release
 ```
 
 실행 파일은 `target\release\mem_guard.exe`에 있고, 설정 파일과 기록은 그 옆에 저장됩니다.
+
+## 라이선스
+
+GNU GPL 3.0으로 공개합니다. 전문은 [LICENSE](LICENSE)를 참고하세요. 자유롭게 사용·수정·배포할 수 있지만, 수정한 버전을 배포할 때는 소스 코드도 똑같이 GPL 3.0으로 공개해야 합니다.
 
 ## 면책 조항
 

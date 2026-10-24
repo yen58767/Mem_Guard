@@ -4,6 +4,7 @@
 
 ![Version](https://img.shields.io/badge/version-1.0.0-78a985)
 ![Author](https://img.shields.io/badge/author-yee58767-e58fa7)
+![License](https://img.shields.io/badge/license-GPL--3.0-8fb3c9)
 ![Rust](https://img.shields.io/badge/Rust-1.94-b7410e?logo=rust&logoColor=white)
 ![egui](https://img.shields.io/badge/egui-0.29.1-4b8bbe)
 ![winit](https://img.shields.io/badge/winit-0.30-555555)
@@ -67,6 +68,10 @@ cargo build --release
 ```
 
 執行檔在 `target\release\mem_guard.exe`，設定檔與紀錄放在它旁邊。
+
+## 授權
+
+本程式以 GNU GPL 3.0 授權釋出，全文見 [LICENSE](LICENSE)。可以自由使用、修改與散布；散布修改過的版本時，必須一樣公開原始碼並使用 GPL 3.0。
 
 ## 免責聲明
 
