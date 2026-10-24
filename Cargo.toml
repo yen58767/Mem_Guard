@@ -1,6 +1,6 @@
 [package]
 name = "mem_guard"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 authors = ["yee58767"]
 description = "Memory Guard"

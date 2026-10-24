@@ -179,5 +179,9 @@
   "wiz_snd_once": "sounds once",
   "wiz_none": "Both lines are off, so it only warns when the whole PC is nearly out of memory.",
   "wiz_mute": "Too noisy? Click the status at the top to quiet it.",
-  "wiz_ok": "OK"
+  "wiz_ok": "OK",
+  "whole": "Whole-PC thresholds",
+  "tray_close": "Close and minimize to the tray",
+  "tip_quit": "Quit",
+  "tip_min": "Minimize to the taskbar"
 }

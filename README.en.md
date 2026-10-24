@@ -2,7 +2,7 @@
 
 [繁體中文](README.md) | **English** | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-![Version](https://img.shields.io/badge/version-1.0.0-78a985)
+![Version](https://img.shields.io/badge/version-1.0.1-78a985)
 ![Author](https://img.shields.io/badge/author-yee58767-e58fa7)
 ![License](https://img.shields.io/badge/license-GPL--3.0-8fb3c9)
 ![Rust](https://img.shields.io/badge/Rust-1.94-b7410e?logo=rust&logoColor=white)
@@ -24,7 +24,7 @@ Watches the "Committed" memory in Task Manager, warns you when it's nearly full,
 ## Highlights
 
 - **Commit, not just memory**: once commit hits the limit, programs start crashing even with physical RAM free.
-- **Warn and auto-close**: notifies you at the warning level; at the action level it closes the top program only if it's a target set to "Close". Each target can also have its own commit and in-use limits.
+- **Warn and auto-close**: each target can have its own commit and in-use limits and warning lines. To watch the whole PC too, turn on whole-PC thresholds in Thresholds (off by default): it notifies you at the warning level, and at the action level closes the top program only if it's a target set to "Close".
 - **Processes**: lists every program like Task Manager, sortable by memory, CPU, and GPU; right-click to end the task, copy its name, or open its folder.
 - **Mini bar**: semi-transparent, always on top, clicks pass through; hold Ctrl to drag. Pick what it shows.
 - **Read-only**: only reads memory counters; the one thing that touches other programs is "Close".
@@ -35,7 +35,7 @@ Fastest way: press "Quick setup" on the main screen, pick your game, say what us
 
 1. Run `mem_guard.exe` and click the gear at the top right to open Settings.
 2. In Targets, click "Add target" and pick the programs to watch (a game, a browser).
-3. In Thresholds, set the warning and action levels; defaults are 85% and 93%.
+3. To watch the whole PC too, turn on "Whole-PC thresholds" in Thresholds (off by default), then set the warning and action levels; defaults are 85% and 93%.
 4. Back on the main window, click a target's row to choose "Close" or "Warn only", and turn on a commit or in-use limit if you need one. With "Close" you can also turn on a warning line: it sounds there first and closes only at the limit.
 5. Click the bar button in the title bar to shrink into the mini bar. Hold Ctrl to drag it, double-click or click the tray icon to restore. Pick what it shows in the Mini bar tab in Settings.
 6. While warning, click the status in the title bar to mute, click again to unmute. Pause keeps warning but never closes anything and stays silent.

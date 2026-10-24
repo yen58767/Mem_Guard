@@ -248,6 +248,10 @@ impl Target {
 #[serde(default)]
 struct Config {
     targets: Vec<Target>,
+    // 整台電腦門檻（警告、動手）開不開；關著時只看各目標自己的線。
+    whole: bool,
+    // 標題列的關閉與縮小鈕是收進系統匣（開），還是真的結束與縮到工作列（關）。
+    tray: bool,
     warn_pct: f64,
     kill_pct: f64,
     growth_gb: f64,
@@ -270,6 +274,8 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             targets: Vec::new(),
+            whole: false,
+            tray: true,
             warn_pct: 85.0,
             kill_pct: 93.0,
             growth_gb: 3.0,
@@ -775,7 +781,45 @@ fn monitor(hub: Arc<Hub>, ctx: egui::Context) {
         prev_cpu = groups.values().flat_map(|g| g.pids.iter().copied().zip(g.times.iter().copied())).collect();
 
         let pct_s = format!("{:.0}", pct);
-        let status = if pct >= cfg.kill_pct {
+        // 判斷順序：各目標的上限、整台動手、各目標的預警線、整台警告；整台兩項只在開關打開時才看。
+        let over = cfg.targets.iter().find_map(|x| {
+            let g = groups.get(&x.exe.to_lowercase())?;
+            [Metric::Commit, Metric::Physical].into_iter().find_map(|m| {
+                let l = x.limit(m);
+                let v = g.val(m);
+                (l.on && v >= l.gb).then_some((x, g, m, v, l.gb))
+            })
+        });
+        let near = cfg.targets.iter().find_map(|x| {
+            let g = groups.get(&x.exe.to_lowercase())?;
+            [Metric::Commit, Metric::Physical].into_iter().find_map(|m| {
+                let w = x.warn_line(m)?;
+                let v = g.val(m);
+                (v >= w).then_some((x, m, v, w))
+            })
+        });
+        let status = if let Some((tg, g, m, v, lim)) = over {
+            let msg = tf("msg_over", &[&tg.name, &m.name(), &format!("{:.1}", v), &format!("{:.1}", lim)]);
+            if tg.kill && !cfg.paused {
+                let key = tg.exe.to_lowercase();
+                if target_kill_try.get(&key).map_or(true, |x| now.duration_since(*x) >= KILL_COOLDOWN) {
+                    target_kill_try.insert(key, now);
+                    let ok = g.pids.iter().fold(true, |acc, &pid| sys::kill(pid) && acc);
+                    let st = if ok {
+                        Status::new(Level::Bad, tf("st_killed", &[&tg.name]), msg)
+                    } else {
+                        Status::new(Level::Bad, tf("st_kill_fail", &[&tg.name]), t("msg_no_perm"))
+                    };
+                    append_log(&[format!("{},#{} {},,,{}", sys::time(), csv_text(&st.title), csv_text(&st.msg), whole_cols(&c))]);
+                    kill_status = Some((now, st.clone()));
+                    st
+                } else {
+                    kill_status.as_ref().map(|(_, s)| s.clone()).unwrap_or_else(|| Status::new(Level::Bad, t("st_danger"), msg))
+                }
+            } else {
+                Status::new(Level::Warn, t("st_warn"), msg)
+            }
+        } else if cfg.whole && pct >= cfg.kill_pct {
             let first = sorted.first();
             let name = first.map(|(k, g)| display(k, &g.exe)).unwrap_or_default();
             match first {
@@ -801,44 +845,9 @@ fn monitor(hub: Arc<Hub>, ctx: egui::Context) {
                     Status::new(Level::Warn, t("st_warn"), tf(key, &[&pct_s, &name]))
                 }
             }
-        } else if let Some((tg, g, m, v, lim)) = cfg.targets.iter().find_map(|x| {
-            let g = groups.get(&x.exe.to_lowercase())?;
-            [Metric::Commit, Metric::Physical].into_iter().find_map(|m| {
-                let l = x.limit(m);
-                let v = g.val(m);
-                (l.on && v >= l.gb).then_some((x, g, m, v, l.gb))
-            })
-        }) {
-            let msg = tf("msg_over", &[&tg.name, &m.name(), &format!("{:.1}", v), &format!("{:.1}", lim)]);
-            if tg.kill && !cfg.paused {
-                let key = tg.exe.to_lowercase();
-                if target_kill_try.get(&key).map_or(true, |x| now.duration_since(*x) >= KILL_COOLDOWN) {
-                    target_kill_try.insert(key, now);
-                    let ok = g.pids.iter().fold(true, |acc, &pid| sys::kill(pid) && acc);
-                    let st = if ok {
-                        Status::new(Level::Bad, tf("st_killed", &[&tg.name]), msg)
-                    } else {
-                        Status::new(Level::Bad, tf("st_kill_fail", &[&tg.name]), t("msg_no_perm"))
-                    };
-                    append_log(&[format!("{},#{} {},,,{}", sys::time(), csv_text(&st.title), csv_text(&st.msg), whole_cols(&c))]);
-                    kill_status = Some((now, st.clone()));
-                    st
-                } else {
-                    kill_status.as_ref().map(|(_, s)| s.clone()).unwrap_or_else(|| Status::new(Level::Bad, t("st_danger"), msg))
-                }
-            } else {
-                Status::new(Level::Warn, t("st_warn"), msg)
-            }
-        } else if let Some((tg, m, v, w)) = cfg.targets.iter().find_map(|x| {
-            let g = groups.get(&x.exe.to_lowercase())?;
-            [Metric::Commit, Metric::Physical].into_iter().find_map(|m| {
-                let w = x.warn_line(m)?;
-                let v = g.val(m);
-                (v >= w).then_some((x, m, v, w))
-            })
-        }) {
+        } else if let Some((tg, m, v, w)) = near {
             Status::new(Level::Warn, t("st_warn"), tf("msg_over", &[&tg.name, &m.name(), &format!("{:.1}", v), &format!("{:.1}", w)]))
-        } else if pct >= cfg.warn_pct {
+        } else if cfg.whole && pct >= cfg.warn_pct {
             Status::new(Level::Warn, t("st_warn"), tf("msg_level", &[&basis.name(), &pct_s]))
         } else if let Some(r) = rows.iter().find(|r| r.hot) {
             Status::new(Level::Warn, t("st_warn"), tf("msg_fast", &[&r.name]))
@@ -1542,6 +1551,7 @@ enum Action {
     Drag,
     Hide,
     Close,
+    Minimize,
     Mini(bool),
 }
 
@@ -1765,11 +1775,12 @@ impl Gui {
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.spacing_mut().item_spacing.x = 2.0;
-                        if icon_button(ui, p, Glyph::Close, None).clicked() {
-                            self.actions.push(Action::Close);
+                        let tray = self.cfg.tray;
+                        if icon_button(ui, p, Glyph::Close, None).on_hover_text(if tray { t("tip_tray") } else { t("tip_quit") }).clicked() {
+                            self.actions.push(if tray { Action::Hide } else { Action::Close });
                         }
-                        if icon_button(ui, p, Glyph::Min, None).on_hover_text(t("tip_tray")).clicked() {
-                            self.actions.push(Action::Hide);
+                        if icon_button(ui, p, Glyph::Min, None).on_hover_text(if tray { t("tip_tray") } else { t("tip_min") }).clicked() {
+                            self.actions.push(if tray { Action::Hide } else { Action::Minimize });
                         }
                         if icon_button(ui, p, Glyph::Gear, None).on_hover_text(t("tip_settings")).clicked() {
                             if self.settings {
@@ -1965,7 +1976,7 @@ impl Gui {
                             if st.level != Level::Ok && !st.msg.is_empty() {
                                 ui.label(egui::RichText::new(format!("・{}", st.msg)).font(fb(13.0)).color(frame));
                             }
-                        } else if st.level == Level::Ok && used < warn_gb {
+                        } else if cfg.whole && st.level == Level::Ok && used < warn_gb {
                             ui.label(egui::RichText::new(t("to_warn")).font(f(13.0)).color(p.dim));
                             ui.label(egui::RichText::new(format!("{:.1} GB", warn_gb - used)).font(fb(13.0)).color(frame));
                         } else if !st.msg.is_empty() {
@@ -1978,8 +1989,9 @@ impl Gui {
                     let xw = tr.left() + tr.width() * (cfg.warn_pct / 100.0) as f32;
                     let xk = tr.left() + tr.width() * (cfg.kill_pct / 100.0) as f32;
                     painter.rect_filled(tr, 4.0, p.well);
-                    // 門檻色塊只在畫面看的就是判斷依據時才畫，避免拿錯的數字比門檻。
-                    if same {
+                    // 門檻色塊只在整台門檻開著、而且畫面看的就是判斷依據時才畫，避免拿錯的數字比門檻。
+                    let thr = same && cfg.whole;
+                    if thr {
                         painter.rect_filled(Rect::from_min_max(pos2(xw, tr.top()), pos2(xk, tr.bottom())), 0.0, p.warn.gamma_multiply(0.3));
                         painter.rect_filled(
                             Rect::from_min_max(pos2(xk, tr.top()), tr.max),
@@ -1989,7 +2001,7 @@ impl Gui {
                     }
                     let fw = (tr.width() * frac).max(8.0);
                     painter.rect_filled(Rect::from_min_size(tr.min, vec2(fw, tr.height())), 4.0, if same { frame } else { p.sys });
-                    if same {
+                    if thr {
                         // 兩個門檻靠很近時，警告的字往左讓開，不跟動手的字疊在一起。
                         let (lr, _) = ui.allocate_exact_size(vec2(w, 14.0), Sense::hover());
                         let kr = ui.painter().text(pos2(lr.right(), lr.top()), Align2::RIGHT_TOP, tf("thr_kill", &[&format!("{:.0}", cfg.kill_pct)]), f(10.0), p.dim);
@@ -2313,6 +2325,8 @@ impl Gui {
         let mut c = self.cfg.clone();
         c.basis = w.basis;
         c.sound = w.sound;
+        // 完成畫面只講這個遊戲自己的線，整台門檻跟著關掉，實際行為才跟畫面講的一樣。
+        c.whole = false;
         let i = match c.targets.iter().position(|t| t.exe.eq_ignore_ascii_case(&w.exe)) {
             Some(i) => i,
             None => {
@@ -2649,19 +2663,23 @@ impl Gui {
             if self.tab == 1 {
             card(ui, p, |ui| {
                 ui.spacing_mut().item_spacing.y = 0.0;
-                item(ui, p, true, &t("basis"), &t("basis_d"), |ui| {
+                // 整台門檻關著時，警告與動手兩列不顯示；判斷依據還管漲太快與排行，照常留著。
+                item(ui, p, true, &t("whole"), "", |ui| toggle(ui, p, &mut d.whole));
+                if d.whole {
+                    item(ui, p, false, &t("warn"), &t("warn_d"), |ui| {
+                        let s = format!("{:.0} %", d.warn_pct);
+                        stepper(ui, p, "warn", &mut d.warn_pct, 1.0, 10.0, 99.0, s);
+                    });
+                    item(ui, p, false, &t("kill"), &t("kill_d"), |ui| {
+                        let s = format!("{:.0} %", d.kill_pct);
+                        stepper(ui, p, "kill", &mut d.kill_pct, 1.0, 10.0, 99.0, s);
+                    });
+                }
+                item(ui, p, false, &t("basis"), &t("basis_d"), |ui| {
                     let mut sel = if d.basis == Metric::Commit { 0 } else { 1 };
                     if seg(ui, p, "basis", &[t("m_commit"), t("m_phys")], &mut sel) {
                         d.basis = if sel == 0 { Metric::Commit } else { Metric::Physical };
                     }
-                });
-                item(ui, p, false, &t("warn"), &t("warn_d"), |ui| {
-                    let s = format!("{:.0} %", d.warn_pct);
-                    stepper(ui, p, "warn", &mut d.warn_pct, 1.0, 10.0, 99.0, s);
-                });
-                item(ui, p, false, &t("kill"), &t("kill_d"), |ui| {
-                    let s = format!("{:.0} %", d.kill_pct);
-                    stepper(ui, p, "kill", &mut d.kill_pct, 1.0, 10.0, 99.0, s);
                 });
                 item(ui, p, false, &t("fast"), &t("fast_d"), |ui| {
                     let s = format!("{:.1} GB", d.growth_gb);
@@ -2732,6 +2750,7 @@ impl Gui {
                 });
                 item(ui, p, false, &t("gpu"), "", |ui| toggle(ui, p, &mut d.gpu));
                 item(ui, p, false, &t("on_top"), "", |ui| toggle(ui, p, &mut d.on_top));
+                item(ui, p, false, &t("tray_close"), "", |ui| toggle(ui, p, &mut d.tray));
                 item(ui, p, false, &t("autostart"), "", |ui| toggle(ui, p, &mut auto));
                 item(ui, p, false, &t("admin"), "", |ui| {
                     if is_admin {
@@ -3199,7 +3218,7 @@ fn chart(pt: &egui::Painter, r: Rect, p: &Pal, v: &View, hist: &VecDeque<Sample>
     let span = HISTORY.as_secs_f32();
     let x = |ti: Instant| rr - (now.duration_since(ti).as_secs_f32() / span).min(1.0) * (rr - l);
     let font = f(10.0);
-    if view == cfg.basis {
+    if cfg.whole && view == cfg.basis {
         let (w, k) = (cap * cfg.warn_pct / 100.0, cap * cfg.kill_pct / 100.0);
         if k < ymax {
             pt.rect_filled(Rect::from_min_max(pos2(l, y(ymax)), pos2(rr, y(k))), 0.0, p.bad.gamma_multiply(0.10));
@@ -3490,6 +3509,7 @@ impl WinApp {
                     self.sync_fast();
                 }
                 Action::Close => el.exit(),
+                Action::Minimize => w.set_minimized(true),
                 Action::Mini(on) => self.set_mini(on),
             }
         }
