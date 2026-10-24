@@ -66,3 +66,11 @@ cargo build --release
 ```
 
 The executable is at `target\release\mem_guard.exe`; settings and logs sit next to it.
+
+## Disclaimer
+
+This is a free tool made by an individual, provided for learning and development testing only. It is not affiliated with NEXON or MapleStory.
+
+It is provided as is, with no guarantee that it is free of errors or fit for any purpose. The author is not responsible for any loss from using it, including but not limited to game account penalties, progress lost when a game is closed automatically, data loss, or computer problems. Use it at your own risk.
+
+It only reads memory and process information provided by Windows. It never reads or writes a game's memory and never modifies game files.
